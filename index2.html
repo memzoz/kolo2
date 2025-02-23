@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koło Fortuny</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        canvas { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Koło Fortuny</h1>
+    <div>
+        <label>Nazwa opcji:</label>
+        <input type="text" id="optionName">
+        <label>Procentowa szansa:</label>
+        <input type="number" id="optionPercent" min="1" max="100">
+        <button onclick="addOption()">Dodaj opcję</button>
+        <button onclick="generateWheel()">Aktualizuj Koło</button>
+    </div>
+    <ul id="optionList"></ul>
+    <canvas id="wheelCanvas" width="400" height="400"></canvas>
+    <button onclick="spinWheel()">Zakręć!</button>
+    <p id="result"></p>
+    
+    <script>
+        let options = [];
+        let angles = [];
+        const canvas = document.getElementById("wheelCanvas");
+        const ctx = canvas.getContext("2d");
+        let currentAngle = 0;
+        let spinning = false;
+
+        function addOption() {
+            const name = document.getElementById("optionName").value.trim();
+            const percent = parseFloat(document.getElementById("optionPercent").value);
+            
+            if (!name || isNaN(percent) || percent <= 0 || percent > 100) {
+                alert("Podaj poprawne wartości!");
+                return;
+            }
+            
+            options.push({ label: name, percent: percent });
+            updateOptionList();
+        }
+
+        function updateOptionList() {
+            const list = document.getElementById("optionList");
+            list.innerHTML = "";
+            options.forEach((opt, index) => {
+                const li = document.createElement("li");
+                li.textContent = `${opt.label}: ${opt.percent}%`;
+                list.appendChild(li);
+            });
+        }
+
+        function generateWheel() {
+            let total = options.reduce((sum, opt) => sum + opt.percent, 0);
+            if (total !== 100) {
+                alert("Łączna suma procentów musi wynosić 100!");
+                return;
+            }
+            
+            angles = [];
+            drawWheel();
+        }
+
+        function drawWheel() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let startAngle = 0;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = 150;
+            
+            options.forEach(option => {
+                let sliceAngle = (option.percent / 100) * 2 * Math.PI;
+                angles.push({ start: startAngle, end: startAngle + sliceAngle, label: option.label });
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
+                ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 70%)`;
+                ctx.fill();
+                ctx.stroke();
+                startAngle += sliceAngle;
+            });
+        }
+
+        function spinWheel() {
+            if (spinning) return;
+            spinning = true;
+            let rand = Math.random() * 100;
+            let cumulative = 0;
+            let selectedOption = null;
+            
+            for (let option of options) {
+                cumulative += option.percent;
+                if (rand <= cumulative) {
+                    selectedOption = option;
+                    break;
+                }
+            }
+            
+            let targetAngle = angles.find(angle => angle.label === selectedOption.label);
+            let stopAngle = (targetAngle.start + targetAngle.end) / 2;
+            let spinTime = 3000;
+            let startTime = null;
+            
+            function animateWheel(timestamp) {
+                if (!startTime) startTime = timestamp;
+                let progress = timestamp - startTime;
+                let easing = Math.pow(progress / spinTime, 0.5);
+                let newAngle = currentAngle + easing * (360 * 5) + stopAngle - (currentAngle % 360);
+                currentAngle = newAngle;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.save();
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate(currentAngle * Math.PI / 180);
+                ctx.translate(-canvas.width / 2, -canvas.height / 2);
+                drawWheel();
+                ctx.restore();
+                
+                if (progress < spinTime) {
+                    requestAnimationFrame(animateWheel);
+                } else {
+                    spinning = false;
+                    document.getElementById("result").innerText = "Wynik: " + selectedOption.label;
+                }
+            }
+            requestAnimationFrame(animateWheel);
+        }
+    </script>
+</body>
+</html>
